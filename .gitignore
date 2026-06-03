@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+checkpoints/
+medmnist_data/
+*.pth
+*.crdownload
+.DS_Store
+.vscode/
+.idea/
+*.log
