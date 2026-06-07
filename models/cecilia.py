@@ -3,37 +3,66 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
-import medmnist
-from medmnist import INFO
+#import medmnist
+#from medmnist import INFO
+from torchvision.datasets import ImageFolder # 为kaggle的chest x-ray数据集准备的，直接使用ImageFolder加载数据
 import os
 
 # ----------------------------
 # 数据增强和数据集
 # ----------------------------
-train_transform = transforms.Compose([
-    transforms.RandomRotation(15),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomResizedCrop(28, scale=(0.8, 1.0)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5], std=[0.5])
-])
+# train_transform = transforms.Compose([
+#     transforms.RandomRotation(15),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomResizedCrop(28, scale=(0.8, 1.0)),
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=[0.5], std=[0.5])
+# ])
+
+data_root = "./chest_xray_split"
+
+train_transform = transforms.Compose(
+    [
+        transforms.Resize((224, 224)),
+        transforms.RandomRotation(15),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ]
+)
 
 val_test_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5], std=[0.5])
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
 
-data_flag = "pneumoniamnist"
-info = INFO[data_flag]
-DataClass = getattr(medmnist, info["python_class"])
-num_classes = len(info["label"])
-in_channels = info["n_channels"]
+# data_flag = "pneumoniamnist"
+# info = INFO[data_flag]
+# DataClass = getattr(medmnist, info["python_class"])
+# num_classes = len(info["label"])
+# in_channels = info["n_channels"]
 
-data_root = r"../medmnist_data"
+#data_root = r"./medmnist_data"
 
-train_dataset = DataClass(split="train", transform=train_transform, download=False, root=data_root)
-val_dataset   = DataClass(split="val", transform=val_test_transform, download=False, root=data_root)
-test_dataset  = DataClass(split="test", transform=val_test_transform, download=False, root=data_root)
+# train_dataset = DataClass(split="train", transform=train_transform, download=False, root=data_root)
+# val_dataset   = DataClass(split="val", transform=val_test_transform, download=False, root=data_root)
+# test_dataset  = DataClass(split="test", transform=val_test_transform, download=False, root=data_root)
+
+train_dataset = ImageFolder(os.path.join(data_root, "train"), transform=train_transform)
+val_dataset = ImageFolder(os.path.join(data_root, "val"), transform=val_test_transform)
+#test_dataset = ImageFolder(os.path.join(data_root, "test"), transform=val_test_transform)
+test_dataset = ImageFolder("chest_xray\\chest_xray\\test", transform=val_test_transform)
+
+num_classes = len(train_dataset.classes)
+print("类别：", train_dataset.classes)
 
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 val_loader   = DataLoader(val_dataset, batch_size=64, shuffle=False)
@@ -48,7 +77,7 @@ class Cecilia(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = nn.Sequential(
-            nn.Conv2d(1, 32, 3, padding=1),
+            nn.Conv2d(3, 32, 3, padding=1),
             nn.ReLU(),
             nn.MaxPool2d(2),
 
@@ -57,7 +86,7 @@ class Cecilia(nn.Module):
             nn.MaxPool2d(2),
 
             nn.Flatten(),
-            nn.Linear(64*7*7, 128),
+            nn.Linear(64*56*56, 128),
             nn.ReLU(),
             nn.Linear(128, 2)
         )
@@ -140,12 +169,15 @@ model.load_state_dict(torch.load("checkpoints/best_cecilia.pth"))
 model.eval()
 correct, total = 0, 0
 with torch.no_grad():
-    for imgs, labels in test_loader:
-        imgs, labels = imgs.to(device), labels.squeeze().long().to(device)
-        outputs = model(imgs)
-        preds = outputs.argmax(dim=1)
-        correct += (preds == labels).sum().item()
-        total += labels.size(0)
+    if 'test_loader' in locals():
+        for imgs, labels in test_loader:
+            imgs, labels = imgs.to(device), labels.squeeze().long().to(device)
+            outputs = model(imgs)
+            preds = outputs.argmax(dim=1)
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+    else:
+        print("No test loader, skip testing.")
 
 test_acc = correct / total
 print(f"Final Test Acc = {test_acc:.4f}")

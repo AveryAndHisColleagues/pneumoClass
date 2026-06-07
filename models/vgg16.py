@@ -4,27 +4,42 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms, models
-import medmnist
-from medmnist import INFO
+from torchvision.datasets import ImageFolder # 为kaggle的chest x-ray数据集准备的，直接使用ImageFolder加载数据
+# import medmnist
+# from medmnist import INFO
 
-data_flag = "pneumoniamnist"
-info = INFO[data_flag]
-DataClass = getattr(medmnist, info["python_class"])
-num_classes = len(info["label"])
+# data_flag = "pneumoniamnist"
+# info = INFO[data_flag]
+# DataClass = getattr(medmnist, info["python_class"])
+# num_classes = len(info["label"])
 
-data_root = r"../medmnist_data"
+# data_root = r"../medmnist_data"
 
-train_transform = transforms.Compose([
-    transforms.Grayscale(num_output_channels=3),
-    transforms.RandomRotation(15),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
+# train_transform = transforms.Compose([
+#     transforms.Grayscale(num_output_channels=3),
+#     transforms.RandomRotation(15),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+#     transforms.ToTensor(),
+#     transforms.Normalize(
+#         mean=[0.485, 0.456, 0.406],
+#         std=[0.229, 0.224, 0.225]
+#     )
+# ])
+train_transform = transforms.Compose(
+    [
+        transforms.Grayscale(num_output_channels=3),
+        transforms.Resize((224, 224)),
+        transforms.RandomRotation(15),
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.ToTensor(),
+        transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    ]
+)
 
 val_test_transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=3),
@@ -36,19 +51,30 @@ val_test_transform = transforms.Compose([
     )
 ])
 
-train_dataset = DataClass(split="train", transform=train_transform, download=False, root=data_root)
-val_dataset = DataClass(split="val", transform=val_test_transform, download=False, root=data_root)
-test_dataset = DataClass(split="test", transform=val_test_transform, download=False, root=data_root)
+# train_dataset = DataClass(split="train", transform=train_transform, download=False, root=data_root)
+# val_dataset = DataClass(split="val", transform=val_test_transform, download=False, root=data_root)
+# test_dataset = DataClass(split="test", transform=val_test_transform, download=False, root=data_root)
+train_root = "./chest_xray_split/train"
+val_root = "./chest_xray_split/val"
 
-train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=4, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=4, shuffle=False)
+# 官方测试集
+test_root = "./chest_xray/chest_xray/test"
+train_dataset = ImageFolder(train_root, transform=train_transform)
+val_dataset = ImageFolder(val_root, transform=val_test_transform)
+test_dataset = ImageFolder(test_root, transform=val_test_transform)
+
+num_classes = len(train_dataset.classes)
+print("类别：", train_dataset.classes)
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+val_loader   = DataLoader(val_dataset, batch_size=32, shuffle=False)
+test_loader  = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("device:", device)
 
-#model = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
-model = models.vgg16(weights=None)
+model = models.vgg16(weights=models.VGG16_Weights.IMAGENET1K_V1)
+#model = models.vgg16(weights=None)
 model.classifier[6] = nn.Linear(4096, num_classes)
 model = model.to(device)
 

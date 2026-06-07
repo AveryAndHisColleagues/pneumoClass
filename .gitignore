@@ -1,15 +1,22 @@
+# 数据
+chest_xray/
+chest_xray_split/
+medmnist_data/
+
+# 训练结果
+checkpoints/
+results/
+
+# Python缓存
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-.Python
-checkpoints/
-medmnist_data/
-chest_xray/
-*.pth
-*.crdownload
-.DS_Store
+
+# IDE
 .vscode/
 .idea/
+
+# 日志
 *.log
-*.png
+
+# 预训练权重
+weights/
